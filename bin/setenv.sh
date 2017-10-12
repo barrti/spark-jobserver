@@ -21,29 +21,12 @@ else
   fi
 fi
 
+echo "1"
+
 if [ -f "$appdir/settings.sh" ]; then
   . $appdir/settings.sh
 else
   echo "Missing $appdir/settings.sh, exiting"
-  exit 1
-fi
-
-if [ -z "$SPARK_HOME" ]; then
-  echo "Please set SPARK_HOME or put it in $appdir/settings.sh first"
-  exit 1
-fi
-
-if [ ! -d "$SPARK_HOME" ]; then
-  echo "SPARK_HOME doesn't exist: $SPARK_HOME, exiting"
-  exit 1
-fi
-
-if [ -z "$SPARK_CONF_DIR" ]; then
-  SPARK_CONF_DIR=$SPARK_HOME/conf
-fi
-
-if [ ! -d "$SPARK_CONF_DIR" ]; then
-  echo "SPARK_CONF_DIR doesn't exist: $SPARK_CONF_DIR, exiting"
   exit 1
 fi
 
@@ -53,6 +36,8 @@ if [ -z "$LOG_DIR" ]; then
 fi
 mkdir -p $LOG_DIR
 
+echo "6"
+
 LOGGING_OPTS="-Dlog4j.configuration=file:$appdir/log4j-server.properties
               -DLOG_DIR=$LOG_DIR"
 
@@ -60,6 +45,8 @@ if [ -z "$JMX_PORT" ]; then
     JMX_PORT=9999
     echo "JMX_PORT empty, using default $JMX_PORT"
 fi
+
+echo "7"
 
 # For Mesos
 CONFIG_OVERRIDES=""

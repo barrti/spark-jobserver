@@ -35,18 +35,13 @@ JAVA_OPTS="-XX:MaxDirectMemorySize=$MAX_DIRECT_MEMORY \
            -Dcom.sun.management.jmxremote.authenticate=false \
            -Dcom.sun.management.jmxremote.ssl=false"
 
-MAIN="spark.jobserver.JobServer"
-
 PIDFILE=$appdir/spark-jobserver.pid
 if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE"); then
    echo 'Job server is already running'
    exit 1
 fi
 
-cmd='$SPARK_HOME/bin/spark-submit --class $MAIN --driver-memory $JOBSERVER_MEMORY
-  --conf "spark.executor.extraJavaOptions=$LOGGING_OPTS"
-  --driver-java-options "$GC_OPTS $JAVA_OPTS $LOGGING_OPTS $CONFIG_OVERRIDES"
-  $@ $appdir/spark-job-server.jar $conffile'
+cmd='/spark/bin/spark-submit --class $MAIN --driver-memory $JOBSERVER_MEMORY --driver-java-options "$GC_OPTS $JAVA_OPTS $LOGGING_OPTS $CONFIG_OVERRIDES" $@ app/spark-job-server.jar $conffile'
 if [ -z "$JOBSERVER_FG" ]; then
   eval $cmd > $LOG_DIR/server_start.log 2>&1 < /dev/null &
   echo $! > $PIDFILE

@@ -131,14 +131,10 @@ lazy val dockerSettings = Seq(
     val artifactTargetPath = s"/app/${artifact.name}"
 
     val sparkBuild = s"spark-${Versions.spark}"
-    val sparkBuildCmd = scalaBinaryVersion.value match {
-      case "2.11" =>
-        "./make-distribution.sh -Dscala-2.11 -Phadoop-2.7 -Phive"
-      case other => throw new RuntimeException(s"Scala version $other is not supported!")
-    }
+
 
     new sbtdocker.mutable.Dockerfile {
-      from(s"openjdk:${Versions.java}")
+      from(s"java")
       // Dockerfile best practices: https://docs.docker.com/articles/dockerfile_best-practices/
       expose(8090)
       expose(9999) // for JMX
@@ -147,36 +143,35 @@ lazy val dockerSettings = Seq(
         """echo "deb http://repos.mesosphere.io/ubuntu/ trusty main" > /etc/apt/sources.list.d/mesosphere.list && \
                 apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF && \
                 apt-get -y update && \
-                apt-get -y install mesos=${MESOS_VERSION} && \
+                apt-get -y install mesos && \
                 apt-get clean
              """)
       copy(artifact, artifactTargetPath)
-      copy(baseDirectory(_ / "bin" / "server_start.sh").value, file("app/server_start.sh"))
-      copy(baseDirectory(_ / "bin" / "server_stop.sh").value, file("app/server_stop.sh"))
-      copy(baseDirectory(_ / "bin" / "manager_start.sh").value, file("app/manager_start.sh"))
-      copy(baseDirectory(_ / "bin" / "setenv.sh").value, file("app/setenv.sh"))
-      copy(baseDirectory(_ / "config" / "log4j-stdout.properties").value, file("app/log4j-server.properties"))
-      copy(baseDirectory(_ / "config" / "docker.conf").value, file("app/docker.conf"))
-      copy(baseDirectory(_ / "config" / "docker.sh").value, file("app/settings.sh"))
+      copy(baseDirectory(_ / "bin" / "server_start.sh").value, s"/app/server_start.sh")
+      copy(baseDirectory(_ / "bin" / "server_stop.sh").value, s"/app/server_stop.sh")
+      copy(baseDirectory(_ / "bin" / "manager_start.sh").value, s"/app/manager_start.sh")
+      copy(baseDirectory(_ / "bin" / "setenv.sh").value, s"/app/setenv.sh")
+      copy(baseDirectory(_ / "job-server/config" / "log4j-stdout.properties").value, s"/app/log4j-server.properties")
+      copy(baseDirectory(_ / "job-server/config" / "docker.conf").value, s"/app/docker.conf")
+      copy(baseDirectory(_ / "job-server/config" / "docker.sh").value, s"app/settings.sh")
       // Including envs in Dockerfile makes it easy to override from docker command
       env("JOBSERVER_MEMORY", "1G")
-      env("SPARK_HOME", "/spark")
-      // Use a volume to persist database between container invocations
+	  //
       run("mkdir", "-p", "/database")
       runRaw(
         s"""
-           |wget http://d3kbcqa49mib13.cloudfront.net/$sparkBuild.tgz && \\
-           |tar -xvf $sparkBuild.tgz && \\
-           |cd $sparkBuild && \\
-           |$sparkBuildCmd && \\
-           |cd .. && \\
-           |mv $sparkBuild/dist /spark && \\
-           |rm $sparkBuild.tgz && \\
-           |rm -r $sparkBuild
+           |wget https://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-hadoop2.7.tgz && \\
+           |tar -xvf spark-2.2.0-bin-hadoop2.7.tgz && \\
+           |mv spark-2.2.0-bin-hadoop2.7 /spark
         """.stripMargin.trim
       )
       volume("/database")
-      entryPoint("app/server_start.sh")
+	  env("SPARK_HOME", "/spark")
+	  env("SPARK_CONF_DIR", "$SPARK_HOME/conf")
+	  env("MAIN", "spark.jobserver.JobServer")
+	  env("LOG_DIR", "/tmp/job-server")
+	  env("LOGGING_OPTS", "-Dlog4j.configuration=file:app/log4j-server.properties -DLOG_DIR=$LOG_DIR")
+      entryPoint("/app/server_start.sh")
     }
   },
   imageNames in docker := Seq(
